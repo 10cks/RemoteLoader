@@ -2,7 +2,94 @@
 #include <winhttp.h>
 #include <iostream>
 #include <string>
-#include "http_request.hpp"
+#include <vector>
+#include <regex>
+
+class HttpRequest {
+public:
+    static bool ParseURL(const std::wstring& url, std::wstring& host, INTERNET_PORT& port, std::wstring& path)
+    {
+        std::wregex urlRegex(L"(http://|https://)?([^:/]+):?(\\d*)(/.*)?");
+        std::wsmatch matches;
+
+        if (std::regex_match(url, matches, urlRegex)) {
+            host = matches[2].str();
+            port = matches[3].length() > 0 ? std::stoi(matches[3].str()) : 80;
+            path = matches[4].length() > 0 ? matches[4].str() : L"/";
+            return true;
+        }
+        return false;
+    }
+
+    static HINTERNET OpenSession()
+    {
+        return WinHttpOpen(L"WinHTTP Example/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    }
+
+    static HINTERNET ConnectToServer(HINTERNET hSession, const std::wstring& szServerName, INTERNET_PORT nServerPort)
+    {
+        return WinHttpConnect(hSession, szServerName.c_str(), nServerPort, 0);
+    }
+
+    static HINTERNET OpenRequest(HINTERNET hConnect, const std::wstring& szPath)
+    {
+        return WinHttpOpenRequest(hConnect, L"GET", szPath.c_str(), NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
+    }
+
+    static bool SendRequest(HINTERNET hRequest)
+    {
+        return WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) != 0;
+    }
+
+    static bool ReceiveResponse(HINTERNET hRequest)
+    {
+        return WinHttpReceiveResponse(hRequest, NULL) != 0;
+    }
+
+    static void* ReadResponse(HINTERNET hRequest, void* lpAddress, SIZE_T sDataSize)
+    {
+        DWORD dwSize = 0;
+        DWORD dwDownloaded = 0;
+        DWORD_PTR hptr = reinterpret_cast<DWORD_PTR>(lpAddress);
+        do
+        {
+            dwSize = 0;
+            if (!WinHttpQueryDataAvailable(hRequest, &dwSize)) break;
+
+            std::vector<unsigned char> pszOutBuffer(dwSize + 1, 0);
+            if (!WinHttpReadData(hRequest, pszOutBuffer.data(), dwSize, &dwDownloaded)) break;
+
+            VxMoveMemory(reinterpret_cast<void*>(hptr), pszOutBuffer.data(), dwSize);
+            hptr += dwSize;
+        } while (dwSize > 0);
+        return lpAddress;
+    }
+
+    static void CloseHandles(HINTERNET hRequest, HINTERNET hConnect, HINTERNET hSession)
+    {
+        if (hRequest) WinHttpCloseHandle(hRequest);
+        if (hConnect) WinHttpCloseHandle(hConnect);
+        if (hSession) WinHttpCloseHandle(hSession);
+    }
+
+private:
+    static void* VxMoveMemory(void* dest, const void* src, SIZE_T len)
+    {
+        char* d = static_cast<char*>(dest);
+        const char* s = static_cast<const char*>(src);
+        if (d < s)
+            while (len--)
+                *d++ = *s++;
+        else
+        {
+            const char* lasts = s + (len - 1);
+            char* lastd = d + (len - 1);
+            while (len--)
+                *lastd-- = *lasts--;
+        }
+        return dest;
+    }
+};
 
 int main(int argc, char* argv[])
 {
@@ -25,7 +112,7 @@ int main(int argc, char* argv[])
     DWORD dwDataSize = 0;
     DWORD dwSize = sizeof(dwDataSize);
 
-    std::wstring url = L"http://127.0.0.1:8181/test.1123";
+    std::wstring url = L"http://127.0.0.1:8181/test";
     std::wstring host, path;
     INTERNET_PORT port;
 
