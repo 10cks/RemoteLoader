@@ -15,6 +15,7 @@ public:
     static bool ReceiveResponse(HINTERNET hRequest);
     static void* ReadResponse(HINTERNET hRequest, void* lpAddress, SIZE_T sDataSize);
     static void CloseHandles(HINTERNET hRequest, HINTERNET hConnect, HINTERNET hSession);
+    static bool ParseURL(const std::wstring& url, std::wstring& host, INTERNET_PORT& port, std::wstring& path);
 
 private:
     static void* VxMoveMemory(void* dest, const void* src, SIZE_T len);

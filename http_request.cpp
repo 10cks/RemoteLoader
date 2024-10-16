@@ -1,5 +1,6 @@
 #include "http_request.hpp"
 #include <cstring>
+#include <regex>
 
 void* HttpRequest::VxMoveMemory(void* dest, const void* src, SIZE_T len)
 {
@@ -16,6 +17,20 @@ void* HttpRequest::VxMoveMemory(void* dest, const void* src, SIZE_T len)
             *lastd-- = *lasts--;
     }
     return dest;
+}
+
+bool HttpRequest::ParseURL(const std::wstring& url, std::wstring& host, INTERNET_PORT& port, std::wstring& path)
+{
+    std::wregex urlRegex(L"(http://|https://)?([^:/]+):?(\\d*)(/.*)?");
+    std::wsmatch matches;
+
+    if (std::regex_match(url, matches, urlRegex)) {
+        host = matches[2].str();
+        port = matches[3].length() > 0 ? std::stoi(matches[3].str()) : 80;
+        path = matches[4].length() > 0 ? matches[4].str() : L"/";
+        return true;
+    }
+    return false;
 }
 
 HINTERNET HttpRequest::OpenSession()

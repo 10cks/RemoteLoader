@@ -6,7 +6,7 @@
 
 int main(int argc, char* argv[])
 {
-    HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");  // 修改这行
+    HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");
 
     if (hKernel32 == NULL) {
         std::cerr << "Failed to get handle to kernel32.dll" << std::endl;
@@ -25,13 +25,22 @@ int main(int argc, char* argv[])
     DWORD dwDataSize = 0;
     DWORD dwSize = sizeof(dwDataSize);
 
+    std::wstring url = L"http://127.0.0.1:8181/test.1123";
+    std::wstring host, path;
+    INTERNET_PORT port;
+
+    if (!HttpRequest::ParseURL(url, host, port, path)) {
+        std::cerr << "Failed to parse URL" << std::endl;
+        return 1;
+    }
+
     hSession = HttpRequest::OpenSession();
     if (hSession)
     {
-        hConnect = HttpRequest::ConnectToServer(hSession, L"127.0.0.1", 8181);
+        hConnect = HttpRequest::ConnectToServer(hSession, host, port);
         if (hConnect)
         {
-            hRequest = HttpRequest::OpenRequest(hConnect, L"cloud");
+            hRequest = HttpRequest::OpenRequest(hConnect, path);
             if (hRequest)
             {
                 if (HttpRequest::SendRequest(hRequest) && HttpRequest::ReceiveResponse(hRequest))
